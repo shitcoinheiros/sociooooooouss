@@ -33,8 +33,8 @@ td,th {padding:8px; border-bottom:1px solid #45a29e;}
 
 <script>
 const ADDRESS = "0x4A0153E289b475Fd8693f415C00813dC77b50E64".toLowerCase();
-const BSCSCAN_API_KEY = "ESBZ6MIBSP39YA2PPTJDBYSG7N2IHH7QJA"; // Universal (Etherscan API Suite)
-const BSCSCAN_URL = `https://api.bscscan.com/api`;
+const BSCSCAN_API_KEY = "ESBZ6MIBSP39YA2PPTJDBYSG7N2IHH7QJA"; // Chave universal Etherscan API Suite
+const BSCSCAN_URL = `https://api.bscscan.com/api/v2`;
 
 async function getBNBPrice() {
   const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd,brl&include_24hr_change=true");
@@ -43,29 +43,30 @@ async function getBNBPrice() {
 }
 
 async function getBalance() {
-  const res = await fetch(`${BSCSCAN_URL}?module=account&action=balance&address=${ADDRESS}&apikey=${BSCSCAN_API_KEY}`);
+  const res = await fetch(`${BSCSCAN_URL}/balance/${ADDRESS}?apikey=${BSCSCAN_API_KEY}`);
   const data = await res.json();
-  if (!data.result || isNaN(data.result)) {
+
+  console.log("Saldo BSC v2:", data);
+
+  if (!data || !data.result || !data.result.balance) {
     console.warn("Erro ao obter saldo:", data);
     return 0;
   }
-  return Number(data.result) / 1e18;
+  return Number(data.result.balance) / 1e18;
 }
 
 async function getTransactions() {
-  const res = await fetch(`${BSCSCAN_URL}?module=account&action=txlist&address=${ADDRESS}&startblock=0&endblock=99999999&sort=desc&apikey=${BSCSCAN_API_KEY}`);
+  const res = await fetch(`${BSCSCAN_URL}/transactions?address=${ADDRESS}&sort=desc&apikey=${BSCSCAN_API_KEY}`);
   const data = await res.json();
 
-  // Log para debug — veja no console
-  console.log("Retorno da BscScan:", data);
+  console.log("Transações BSC v2:", data);
 
-  // Corrigido: alguns retornos vêm com result string, não array
-  if (data.status !== "1" || !Array.isArray(data.result)) {
-    console.warn("⚠️ Nenhuma transação válida encontrada ou erro:", data.message);
+  if (!data || !data.result || !Array.isArray(data.result)) {
+    console.warn("⚠️ Nenhuma transação válida encontrada:", data);
     return [];
   }
 
-  // Filtra apenas transações recebidas
+  // Filtra apenas recebidas
   return data.result.filter(tx => tx.to && tx.to.toLowerCase() === ADDRESS);
 }
 
