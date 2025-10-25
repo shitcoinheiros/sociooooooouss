@@ -1,252 +1,159 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitor BSC - Saldo e Recebidos</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
-<style>/* ... (Mantenha os estilos anteriores) ... */
-
-/* Cores específicas para os cards de saldo */
-.stats-card.primary {
-    background-color: #f7e1b5; /* Cor BNB (Amarelo claro) */
-}
-
-.stats-card.secondary {
-    background-color: #e9f7ef; /* Cor USD (Verde claro) */
-}
-
-.stats-card.tertiary {
-    background-color: #dbe9f6; /* Cor BRL (Azul claro) */
-}
-
-.stats-card.primary p {
-    color: #f39c12; /* Amarelo */
-}
-.stats-card.secondary p {
-    color: #2ecc71; /* Verde */
-}
-.stats-card.tertiary p {
-    color: #3498db; /* Azul */
-}
-
-/* Informações de cotação */
-.exchange-rate-info {
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitor de Carteira BNB</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #0e1117;
+    color: #fff;
+    margin: 0;
+    padding: 20px;
+  }
+  h1 {
     text-align: center;
-    margin-bottom: 20px;
-    color: #7f8c8d;
-}
-
-/* Transações: Apenas a cor de ENTRADA ('in') será usada aqui */
-.tx-amount.in {
-    background-color: #e9f7ef;
-    color: #2ecc71;
-}
-
-/* Remova o estilo 'out' se você for mostrar APENAS recebidas */
-.out { 
-    /* Estilo para garantir que transações de saída não apareçam se o filtro falhar */
-    display: none; 
-} 
-
-/* ... (Mantenha os estilos anteriores, como body, container, skeleton, etc.) ... */</style>
+    color: #f3ba2f;
+  }
+  .card {
+    background: #161b22;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(243,186,47,0.2);
+    margin: 20px auto;
+    max-width: 600px;
+  }
+  .info {
+    font-size: 16px;
+    margin-bottom: 10px;
+  }
+  .positive { color: #00ff88; }
+  .negative { color: #ff4d4d; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+  }
+  th, td {
+    padding: 8px;
+    border-bottom: 1px solid #333;
+    text-align: left;
+  }
+  a {
+    color: #f3ba2f;
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1>Monitor de Carteira BSC (Recebidos)</h1>
-        
-        <div class="monitor-header">
-            <p>Carteira Monitorada:</p>
-            <p class="wallet-address" id="walletDisplay">0x4A0153E289b475Fd8693f415C00813dC77b50E64</p>
-            <button onclick="fetchWalletData()">Atualizar Dados</button>
-        </div>
 
-        <div id="statusMessage" class="status-message">Carregando dados...</div>
+<h1>Monitor de Carteira BNB</h1>
+<div class="card">
+  <div id="wallet-info" class="info">Carregando dados...</div>
+  <table id="tx-table">
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>De</th>
+        <th>Valor (BNB)</th>
+        <th>Tx</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
 
-        <h2>Resumo do Saldo</h2>
-        <div class="stats-card-container">
-            <div class="stats-card primary">
-                <h2>Saldo BNB Total</h2>
-                <p id="bnbBalance">-- BNB</p>
-            </div>
-            <div class="stats-card secondary">
-                <h2>Valor Estimado (USD)</h2>
-                <p id="usdValue">-- USD</p>
-            </div>
-            <div class="stats-card tertiary">
-                <h2>Valor Estimado (BRL)</h2>
-                <p id="brlValue">-- BRL</p>
-            </div>
-        </div>
-        <div class="exchange-rate-info">
-            <small id="exchangeInfo">Cotações simuladas: BNB/USD: -- | USD/BRL: --</small>
-        </div>
+<script>
+const ADDRESS = "0x4A0153E289b475Fd8693f415C00813dC77b50E64".toLowerCase();
+const BSCSCAN_API_KEY = "ESBZ6MIBSP39YA2PPTJDBYSG7N2IHH7QJA"; // 🔑 COLE SUA API KEY AQUI
 
-        <h2>Transações **Recebidas** (Entradas)</h2>
-        <div class="transaction-list" id="transactionList">
-            <div class="transaction-item skeleton"></div>
-            <div class="transaction-item skeleton"></div>
-        </div>
-    </div>
+async function getBalance() {
+  const url = `https://api.bscscan.com/api?module=account&action=balance&address=${ADDRESS}&tag=latest&apikey=${BSCSCAN_API_KEY}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return data.result;
+}
 
-    <footer>
-        <p>Atenção: A chave API BscScan DEVE ser usada em um servidor backend seguro.</p>
-    </footer>
-<scrpt>document.addEventListener('DOMContentLoaded', () => {
-    fetchWalletData();
-});
+async function getTransactions() {
+  const url = `https://api.bscscan.com/api?module=account&action=txlist&address=${ADDRESS}&startblock=0&endblock=99999999&sort=desc&apikey=${BSCSCAN_API_KEY}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return data.result.filter(tx => tx.to && tx.to.toLowerCase() === ADDRESS);
+}
 
-const WALLET_ADDRESS = "0x4A0153E289b475Fd8693f415C00813dC77b50E64";
-// Lembre-se: Chave API APENAS no Backend!
-const API_KEY_SECURE = "ESBZ6MIBSP39YA2PPTJDBYSG7N2IHH7QJA"; 
-const BSC_SCAN_BASE_URL = "https://api.bscscan.com/api"; 
+async function getBNBPrices() {
+  const url = `https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd,brl&include_24hr_change=true`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return data.binancecoin;
+}
 
-// Função principal para buscar e exibir os dados
-async function fetchWalletData() {
-    const statusMessage = document.getElementById('statusMessage');
-    const listContainer = document.getElementById('transactionList');
-    
-    // 1. Limpa e mostra o status de carregamento
-    statusMessage.textContent = 'Buscando dados na Blockchain e cotações de câmbio...';
-    listContainer.innerHTML = `
-        <div class="transaction-item skeleton"></div>
-        <div class="transaction-item skeleton"></div>
+function weiToBNB(wei) {
+  return Number(wei) / 1e18;
+}
+
+function formatNumber(num, decimals = 4) {
+  return Number(num).toLocaleString("en-US", { maximumFractionDigits: decimals });
+}
+
+async function loadData() {
+  try {
+    const [weiBalance, txs, priceData] = await Promise.all([
+      getBalance(),
+      getTransactions(),
+      getBNBPrices()
+    ]);
+
+    const balanceBNB = weiToBNB(weiBalance);
+    const usdPrice = priceData.usd;
+    const brlPrice = priceData.brl;
+    const change24h = priceData.usd_24h_change;
+
+    const balanceUSD = balanceBNB * usdPrice;
+    const balanceBRL = balanceBNB * brlPrice;
+
+    const infoDiv = document.getElementById("wallet-info");
+    infoDiv.innerHTML = `
+      <strong>Endereço:</strong> ${ADDRESS}<br>
+      <strong>Saldo:</strong> ${formatNumber(balanceBNB)} BNB<br>
+      <strong>USD:</strong> $${formatNumber(balanceUSD, 2)}<br>
+      <strong>BRL:</strong> R$${formatNumber(balanceBRL, 2)}<br>
+      <strong>BNB 24h:</strong> 
+      <span class="${change24h >= 0 ? 'positive' : 'negative'}">
+        ${change24h.toFixed(2)}%
+      </span>
     `;
-    // Limpa dados anteriores
-    document.getElementById('bnbBalance').textContent = '-- BNB';
-    document.getElementById('usdValue').textContent = '-- USD';
-    document.getElementById('brlValue').textContent = '-- BRL';
-    document.getElementById('exchangeInfo').textContent = 'Cotações simuladas: BNB/USD: -- | USD/BRL: --';
 
-    try {
-        // --- INÍCIO DA SIMULAÇÃO DE CHAMADAS API ---
-        // Na prática, você faria chamadas para seu backend/proxy seguro
-        const { balanceWei, transactions, bnbToUsd, usdToBrl } = await simulateAPICalls();
-        // --- FIM DA SIMULAÇÃO DE CHAMADAS API ---
+    const tbody = document.querySelector("#tx-table tbody");
+    tbody.innerHTML = "";
+    txs.slice(0, 15).forEach(tx => {
+      const date = new Date(tx.timeStamp * 1000).toLocaleString("pt-BR");
+      const valueBNB = weiToBNB(tx.value);
+      const row = `
+        <tr>
+          <td>${date}</td>
+          <td>${tx.from.slice(0, 6)}...${tx.from.slice(-4)}</td>
+          <td>${formatNumber(valueBNB)}</td>
+          <td><a href="https://bscscan.com/tx/${tx.hash}" target="_blank">ver</a></td>
+        </tr>
+      `;
+      tbody.insertAdjacentHTML("beforeend", row);
+    });
 
-        // 2. Processamento e Cálculo
-        const bnbBalance = balanceWei / (10**18); // Converte de Wei para BNB
-        const usdValue = bnbBalance * bnbToUsd;
-        const brlValue = usdValue * usdToBrl;
-
-        // 3. Renderiza o Saldo e Valores
-        document.getElementById('bnbBalance').textContent = `${bnbBalance.toFixed(6)} BNB`;
-        document.getElementById('usdValue').textContent = `U$ ${usdValue.toFixed(2)}`;
-        document.getElementById('brlValue').textContent = `R$ ${brlValue.toFixed(2)}`;
-        document.getElementById('exchangeInfo').textContent = `Cotações simuladas: BNB/USD: ${bnbToUsd.toFixed(2)} | USD/BRL: ${usdToBrl.toFixed(2)}`;
-        
-        // 4. Filtra e Renderiza Transações Recebidas
-        const receivedTransactions = transactions.filter(tx => 
-            tx.to.toLowerCase() === WALLET_ADDRESS.toLowerCase() // O endereço da carteira é o destinatário
-        );
-
-        renderTransactions(receivedTransactions, listContainer);
-
-        // 5. Atualiza Status
-        statusMessage.textContent = 'Dados do Saldo e Transações Recebidas atualizados com sucesso.';
-        statusMessage.style.backgroundColor = '#d4edda';
-        statusMessage.style.color = '#155724';
-
-    } catch (error) {
-        console.error("Erro ao buscar dados:", error);
-        statusMessage.textContent = `Erro ao carregar dados: ${error.message}. Verifique o console.`;
-        statusMessage.style.backgroundColor = '#f8d7da';
-        statusMessage.style.color = '#721c24';
-        listContainer.innerHTML = '<p style="text-align: center;">Não foi possível carregar as transações.</p>';
-    }
+  } catch (err) {
+    document.getElementById("wallet-info").innerHTML = "Erro ao carregar dados 😞";
+    console.error(err);
+  }
 }
 
-// Renderiza a lista de transações recebidas
-function renderTransactions(transactions, listContainer) {
-    listContainer.innerHTML = ''; 
+// Atualiza a cada 60 segundos
+loadData();
+setInterval(loadData, 60000);
+</script>
 
-    if (transactions.length === 0) {
-        listContainer.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 10px;">Nenhuma transação recebida encontrada.</p>';
-        return;
-    }
-
-    transactions.forEach(tx => {
-        // Para uma transação RECEBIDA, a direção é sempre "ENTRADA" e a classe é 'in'
-        const txType = tx.tokenName ? `Token: ${tx.tokenSymbol}` : 'BNB';
-        const amountDisplay = `${tx.amount} ${tx.tokenSymbol || 'BNB'}`;
-        
-        const txElement = document.createElement('div');
-        txElement.className = 'transaction-item';
-        txElement.innerHTML = `
-            <div class="tx-details">
-                <strong>ENTRADA</strong> (${txType})
-                <br>
-                <small>Hash: <a href="https://bscscan.com/tx/${tx.hash}" target="_blank">${tx.hash.substring(0, 10)}...</a> | Data: ${tx.date}</small>
-                <br>
-                <small>De: ${tx.from.substring(0, 10)}...</small>
-            </div>
-            <div class="tx-amount in">
-                + ${amountDisplay}
-            </div>
-        `;
-        listContainer.appendChild(txElement);
-    });
-}
-
-
-// #######################################################
-// FUNÇÃO QUE SIMULA TODAS AS CHAMADAS A UM BACKEND SEGURO
-// #######################################################
-function simulateAPICalls() {
-    return new Promise(resolve => {
-        setTimeout(() => {
-            // 1. DADOS DE COTAÇÃO (Simulados - BNB/USD e Câmbio USD/BRL)
-            const bnbToUsd = 600.50; // Preço hipotético do BNB
-            const usdToBrl = 5.15;    // Cotação hipotética do dólar
-
-            // 2. SALDO (Simulado - Valor em Wei)
-            // 1.25 BNB em Wei: 1250000000000000000
-            const balanceWei = 1250000000000000000; 
-
-            // 3. TRANSAÇÕES (Simuladas - Inclui ENTRADA e SAÍDA para testar o filtro)
-            const simulatedTransactions = [
-                // Transação RECEBIDA (ENTRADA)
-                {
-                    hash: '0x1c8b3d4f...d0a3d56',
-                    from: '0xAnotherWallet...',
-                    to: WALLET_ADDRESS,
-                    amount: 0.5,
-                    date: '2025-10-24 14:30:00',
-                    tokenName: null,
-                    tokenSymbol: null // BNB
-                },
-                // Transação RECEBIDA (ENTRADA) - Token
-                {
-                    hash: '0x2a9e1c7g...a1f2b34',
-                    from: '0xExchange...',
-                    to: WALLET_ADDRESS,
-                    amount: 125.5,
-                    date: '2025-10-23 09:15:00',
-                    tokenName: 'PancakeSwap Token',
-                    tokenSymbol: 'CAKE'
-                },
-                // Transação ENVIADA (SAÍDA) - O filtro DEVE IGNORAR esta
-                {
-                    hash: '0x9z0y8x7w...f6e5d4c',
-                    from: WALLET_ADDRESS,
-                    to: '0xDeFiPool...',
-                    amount: 0.1,
-                    date: '2025-10-22 10:00:00',
-                    tokenName: null,
-                    tokenSymbol: null 
-                },
-            ];
-
-            resolve({
-                balanceWei: balanceWei,
-                transactions: simulatedTransactions,
-                bnbToUsd: bnbToUsd,
-                usdToBrl: usdToBrl
-            });
-        }, 1500); // Simula 1.5 segundos de latência
-    });
-}</scrpt>
-    <script src="script.js"></script>
 </body>
 </html>
