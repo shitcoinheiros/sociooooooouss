@@ -47,6 +47,11 @@
   a:hover {
     text-decoration: underline;
   }
+  .no-tx {
+    text-align: center;
+    color: #888;
+    margin-top: 10px;
+  }
 </style>
 </head>
 <body>
@@ -65,23 +70,31 @@
     </thead>
     <tbody></tbody>
   </table>
+  <div id="no-tx" class="no-tx" style="display:none;">Nenhuma transação recebida encontrada.</div>
 </div>
 
 <script>
 const ADDRESS = "0x4A0153E289b475Fd8693f415C00813dC77b50E64".toLowerCase();
-const BSCSCAN_API_KEY = "ESBZ6MIBSP39YA2PPTJDBYSG7N2IHH7QJA"; // 🔑 COLE SUA API KEY AQUI
+const BSCSCAN_API_KEY = "ESBZ6MIBSP39YA2PPTJDBYSG7N2IHH7QJA"; // 🔑 Chave da API BscScan
 
 async function getBalance() {
   const url = `https://api.bscscan.com/api?module=account&action=balance&address=${ADDRESS}&tag=latest&apikey=${BSCSCAN_API_KEY}`;
   const res = await fetch(url);
   const data = await res.json();
-  return data.result;
+  return data.result || "0";
 }
 
 async function getTransactions() {
   const url = `https://api.bscscan.com/api?module=account&action=txlist&address=${ADDRESS}&startblock=0&endblock=99999999&sort=desc&apikey=${BSCSCAN_API_KEY}`;
   const res = await fetch(url);
   const data = await res.json();
+
+  // Evita erro se a resposta não for um array
+  if (data.status !== "1" || !Array.isArray(data.result)) {
+    console.warn("⚠️ Nenhuma transação encontrada ou erro:", data.message);
+    return [];
+  }
+
   return data.result.filter(tx => tx.to && tx.to.toLowerCase() === ADDRESS);
 }
 
@@ -97,7 +110,7 @@ function weiToBNB(wei) {
 }
 
 function formatNumber(num, decimals = 4) {
-  return Number(num).toLocaleString("en-US", { maximumFractionDigits: decimals });
+  return Number(num).toLocaleString("pt-BR", { maximumFractionDigits: decimals });
 }
 
 async function loadData() {
@@ -129,20 +142,27 @@ async function loadData() {
     `;
 
     const tbody = document.querySelector("#tx-table tbody");
+    const noTxDiv = document.getElementById("no-tx");
     tbody.innerHTML = "";
-    txs.slice(0, 15).forEach(tx => {
-      const date = new Date(tx.timeStamp * 1000).toLocaleString("pt-BR");
-      const valueBNB = weiToBNB(tx.value);
-      const row = `
-        <tr>
-          <td>${date}</td>
-          <td>${tx.from.slice(0, 6)}...${tx.from.slice(-4)}</td>
-          <td>${formatNumber(valueBNB)}</td>
-          <td><a href="https://bscscan.com/tx/${tx.hash}" target="_blank">ver</a></td>
-        </tr>
-      `;
-      tbody.insertAdjacentHTML("beforeend", row);
-    });
+
+    if (txs.length === 0) {
+      noTxDiv.style.display = "block";
+    } else {
+      noTxDiv.style.display = "none";
+      txs.slice(0, 15).forEach(tx => {
+        const date = new Date(tx.timeStamp * 1000).toLocaleString("pt-BR");
+        const valueBNB = weiToBNB(tx.value);
+        const row = `
+          <tr>
+            <td>${date}</td>
+            <td>${tx.from.slice(0, 6)}...${tx.from.slice(-4)}</td>
+            <td>${formatNumber(valueBNB)}</td>
+            <td><a href="https://bscscan.com/tx/${tx.hash}" target="_blank">ver</a></td>
+          </tr>
+        `;
+        tbody.insertAdjacentHTML("beforeend", row);
+      });
+    }
 
   } catch (err) {
     document.getElementById("wallet-info").innerHTML = "Erro ao carregar dados 😞";
@@ -150,7 +170,7 @@ async function loadData() {
   }
 }
 
-// Atualiza a cada 60 segundos
+// Atualiza automaticamente a cada 60 segundos
 loadData();
 setInterval(loadData, 60000);
 </script>
