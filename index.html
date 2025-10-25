@@ -5,168 +5,90 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Monitor de Carteira BNB</title>
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    background: #0e1117;
-    color: #fff;
-    margin: 0;
-    padding: 20px;
-    text-align: center;
-  }
-  h1 {
-    color: #f3ba2f;
-  }
-  .card {
-    background: #161b22;
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 0 10px rgba(243,186,47,0.2);
-    margin: 20px auto;
-    max-width: 600px;
-  }
-  .info {
-    font-size: 16px;
-    margin-bottom: 10px;
-  }
-  .positive { color: #00ff88; }
-  .negative { color: #ff4d4d; }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 15px;
-  }
-  th, td {
-    padding: 8px;
-    border-bottom: 1px solid #333;
-    text-align: left;
-  }
-  a {
-    color: #f3ba2f;
-    text-decoration: none;
-  }
-  a:hover {
-    text-decoration: underline;
-  }
-  .no-tx {
-    text-align: center;
-    color: #888;
-    margin-top: 10px;
-  }
+body { font-family: Arial, sans-serif; background: #111; color: #eee; text-align: center; padding: 20px; }
+.card { background: #1a1a1a; border-radius: 10px; padding: 20px; margin: 10px auto; width: 90%; max-width: 500px; box-shadow: 0 0 10px #000; }
+h1 { color: #f0b90b; }
+table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+td, th { padding: 6px; border-bottom: 1px solid #333; font-size: 14px; }
+th { color: #f0b90b; }
 </style>
 </head>
 <body>
 
-<h1>Monitor de Carteira BNB</h1>
+<h1>Carteira Monitorada</h1>
 <div class="card">
-  <div id="wallet-info" class="info">Carregando dados...</div>
-  <table id="tx-table">
-    <thead>
-      <tr>
-        <th>Data</th>
-        <th>De</th>
-        <th>Valor (BNB)</th>
-        <th>Tx</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
+  <h2>Endereço</h2>
+  <div id="address">0x4A0153E289b475Fd8693f415C00813dC77b50E64</div>
+
+  <h2>Saldo</h2>
+  <p id="bnb">Carregando...</p>
+  <p id="usd"></p>
+  <p id="brl"></p>
+
+  <h2>Variação BNB 24h</h2>
+  <p id="bnbChange">Carregando...</p>
+</div>
+
+<div class="card">
+  <h2>Últimas Transações Recebidas</h2>
+  <table id="txsTable">
+    <tr><th>Hash</th><th>De</th><th>Valor (BNB)</th></tr>
   </table>
-  <div id="no-tx" class="no-tx" style="display:none;">Nenhuma transação recebida encontrada.</div>
 </div>
 
 <script>
-const ADDRESS = "0x4A0153E289b475Fd8693f415C00813dC77b50E64".toLowerCase();
-const BSCSCAN_API_KEY = "ESBZ6MIBSP39YA2PPTJDBYSG7N2IHH7QJA";
-const BSCSCAN_URL = `https://api.bscscan.com/api`;
-
-function weiToBNB(wei) {
-  return Number(wei) / 1e18;
-}
-
-function formatNumber(num, decimals = 4) {
-  return Number(num).toLocaleString("pt-BR", { maximumFractionDigits: decimals });
-}
+const ADDRESS = "0x4A0153E289b475Fd8693f415C00813dC77b50E64";
+const API_KEY = "ESBZ6MIBSP39YA2PPTJDBYSG7N2IHH7QJA"; // gere em https://bscscan.com/myapikey
 
 async function getBalance() {
-  try {
-    const res = await fetch(`${BSCSCAN_URL}?module=account&action=balance&address=${ADDRESS}&tag=latest&apikey=${BSCSCAN_API_KEY}`);
-    const data = await res.json();
-    if (data.status !== "1" || !data.result) return 0;
-    return weiToBNB(data.result);
-  } catch (err) {
-    console.error("Erro ao obter saldo:", err);
-    return 0;
-  }
+  const res = await fetch(`https://api.bscscan.com/api/v2/address/${ADDRESS}/balance?apikey=${API_KEY}`);
+  const data = await res.json();
+  return data.result ? Number(data.result.balance) / 1e18 : 0;
 }
 
 async function getTransactions() {
-  try {
-    const res = await fetch(`${BSCSCAN_URL}?module=account&action=txlist&address=${ADDRESS}&startblock=0&endblock=99999999&sort=desc&apikey=${BSCSCAN_API_KEY}`);
-    const data = await res.json();
-    console.log("Transações BSC:", data);
-
-    if (data.status !== "1" || !Array.isArray(data.result)) return [];
-    return data.result.filter(tx => tx.to && tx.to.toLowerCase() === ADDRESS);
-  } catch (err) {
-    console.error("Erro ao obter transações:", err);
-    return [];
-  }
+  const res = await fetch(`https://api.bscscan.com/api/v2/address/${ADDRESS}/transactions?sort=desc&apikey=${API_KEY}`);
+  const data = await res.json();
+  return Array.isArray(data.result) ? data.result.filter(tx => tx.to?.toLowerCase() === ADDRESS.toLowerCase()) : [];
 }
 
-async function getBNBPrices() {
-  try {
-    const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd,brl&include_24hr_change=true");
-    const data = await res.json();
-    return data.binancecoin;
-  } catch (err) {
-    console.error("Erro ao obter preço do BNB:", err);
-    return { usd: 0, brl: 0, usd_24h_change: 0 };
-  }
+async function getBNBPrice() {
+  const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd,brl&include_24hr_change=true");
+  const data = await res.json();
+  return data.binancecoin;
 }
 
 async function loadData() {
-  const [balance, txs, priceData] = await Promise.all([getBalance(), getTransactions(), getBNBPrices()]);
+  try {
+    const [balance, txs, price] = await Promise.all([
+      getBalance(),
+      getTransactions(),
+      getBNBPrice()
+    ]);
 
-  // Saldo e preços
-  const balanceUSD = balance * priceData.usd;
-  const balanceBRL = balance * priceData.brl;
-  const infoDiv = document.getElementById("wallet-info");
-  infoDiv.innerHTML = `
-    <strong>Endereço:</strong> ${ADDRESS}<br>
-    <strong>Saldo:</strong> ${formatNumber(balance)} BNB<br>
-    <strong>USD:</strong> $${formatNumber(balanceUSD,2)}<br>
-    <strong>BRL:</strong> R$${formatNumber(balanceBRL,2)}<br>
-    <strong>BNB 24h:</strong> <span class="${priceData.usd_24h_change>=0?'positive':'negative'}">${priceData.usd_24h_change.toFixed(2)}%</span>
-  `;
+    document.getElementById("bnb").textContent = `${balance.toFixed(6)} BNB`;
+    document.getElementById("usd").textContent = `≈ ${(balance * price.usd).toFixed(2)} USD`;
+    document.getElementById("brl").textContent = `≈ R$ ${(balance * price.brl).toFixed(2)} BRL`;
 
-  // Transações
-  const tbody = document.querySelector("#tx-table tbody");
-  const noTxDiv = document.getElementById("no-tx");
-  tbody.innerHTML = "";
+    const change = price.usd_24h_change.toFixed(2);
+    document.getElementById("bnbChange").textContent =
+      (change >= 0 ? "▲ " : "▼ ") + change + "%";
 
-  if (txs.length === 0) {
-    noTxDiv.style.display = "block";
-  } else {
-    noTxDiv.style.display = "none";
-    txs.slice(0,15).forEach(tx => {
-      const date = new Date(tx.timeStamp*1000).toLocaleString("pt-BR");
-      const valueBNB = weiToBNB(tx.value);
-      const row = `
-        <tr>
-          <td>${date}</td>
-          <td>${tx.from.slice(0,6)}...${tx.from.slice(-4)}</td>
-          <td>${formatNumber(valueBNB)}</td>
-          <td><a href="https://bscscan.com/tx/${tx.hash}" target="_blank">ver</a></td>
-        </tr>
+    const table = document.getElementById("txsTable");
+    txs.slice(0, 10).forEach(tx => {
+      const row = table.insertRow();
+      row.innerHTML = `
+        <td><a href="https://bscscan.com/tx/${tx.hash}" target="_blank">${tx.hash.slice(0, 10)}...</a></td>
+        <td>${tx.from.slice(0, 10)}...</td>
+        <td>${(tx.value / 1e18).toFixed(4)}</td>
       `;
-      tbody.insertAdjacentHTML("beforeend", row);
     });
+  } catch (err) {
+    console.error("Erro geral:", err);
   }
 }
 
-// Atualiza a cada 60 segundos
 loadData();
-setInterval(loadData, 60000);
 </script>
-
 </body>
 </html>
