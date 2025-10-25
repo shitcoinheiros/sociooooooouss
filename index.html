@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoramento de Carteira BSC</title>
+    <style>
+        :root {
+            --primary-color: #f0b90b;
+            --secondary-color: #1e2026;
+            --accent-color: #2b3139;
+            --text-color: #eaecef;
+            --positive-color: #0ecb81;
+            --negative-color: #f6465d;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            border-bottom: 1px solid var(--accent-color);
+        }
+        
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+        
+        .wallet-address {
+            font-family: monospace;
+            background-color: var(--accent-color);
+            padding: 8px 15px;
+            border-radius: 5px;
+            display: inline-block;
+            margin: 10px 0;
+        }
+        
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background-color: var(--accent-color);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .positive {
+            color: var(--positive-color);
+        }
+        
+        .negative {
+            color: var(--negative-color);
+        }
+        
+        .transactions-container {
+            background-color: var(--accent-color);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .transactions-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        th {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+        
+        .transaction-hash {
+            font-family: monospace;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .error {
+            color: var(--negative-color);
+            text-align: center;
+            padding: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .stats-container {
+                grid-template-columns: 1fr;
+            }
+            
+            th, td {
+                padding: 8px 10px;
+            }
+            
+            .transaction-hash {
+                max-width: 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Monitoramento de Carteira BSC</h1>
+            <div class="wallet-address">0x4A0153E289b475Fd8693f415C00813dC77b50E64</div>
+            <p>Acompanhe as transações e saldo desta carteira na Binance Smart Chain</p>
+        </header>
+        
+        <div class="stats-container">
+            <div class="stat-card">
+                <h3>Saldo BNB</h3>
+                <div class="stat-value" id="bnb-balance">Carregando...</div>
+                <p>Valor atual em BNB</p>
+            </div>
+            
+            <div class="stat-card">
+                <h3>Valorização BNB</h3>
+                <div class="stat-value" id="bnb-change">Carregando...</div>
+                <p>Variação nas últimas 24h</p>
+            </div>
+            
+            <div class="stat-card">
+                <h3>Transações</h3>
+                <div class="stat-value" id="transaction-count">Carregando...</div>
+                <p>Total de transações</p>
+            </div>
+        </div>
+        
+        <div class="transactions-container">
+            <div class="transactions-header">
+                <h2>Últimas Transações</h2>
+                <button id="refresh-btn">Atualizar</button>
+            </div>
+            
+            <div id="transactions-content">
+                <div class="loading">Carregando transações...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const walletAddress = '0x4A0153E289b475Fd8693f415C00813dC77b50E64';
+            const bscscanApiKey = 'SeuApiKeyAqui'; // Você precisará obter uma chave da API BscScan
+            const refreshBtn = document.getElementById('refresh-btn');
+            
+            // Elementos da interface
+            const bnbBalanceElement = document.getElementById('bnb-balance');
+            const bnbChangeElement = document.getElementById('bnb-change');
+            const transactionCountElement = document.getElementById('transaction-count');
+            const transactionsContentElement = document.getElementById('transactions-content');
+            
+            // Função para formatar valores
+            function formatNumber(value, decimals = 4) {
+                return parseFloat(value).toFixed(decimals);
+            }
+            
+            // Função para formatar endereços
+            function formatAddress(address) {
+                return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+            }
+            
+            // Função para buscar dados da carteira
+            async function fetchWalletData() {
+                try {
+                    // Atualizar interface para estado de carregamento
+                    bnbBalanceElement.textContent = 'Carregando...';
+                    bnbChangeElement.textContent = 'Carregando...';
+                    transactionCountElement.textContent = 'Carregando...';
+                    transactionsContentElement.innerHTML = '<div class="loading">Carregando transações...</div>';
+                    
+                    // Buscar saldo BNB
+                    const balanceResponse = await fetch(`https://api.bscscan.com/api?module=account&action=balance&address=${walletAddress}&tag=latest&apikey=${bscscanApiKey}`);
+                    const balanceData = await balanceResponse.json();
+                    
+                    if (balanceData.status === '1') {
+                        // Converter saldo de wei para BNB
+                        const balanceInBNB = balanceData.result / 1e18;
+                        bnbBalanceElement.textContent = `${formatNumber(balanceInBNB)} BNB`;
+                    } else {
+                        bnbBalanceElement.textContent = 'Erro ao carregar';
+                    }
+                    
+                    // Buscar transações
+                    const txResponse = await fetch(`https://api.bscscan.com/api?module=account&action=txlist&address=${walletAddress}&startblock=0&endblock=99999999&sort=desc&apikey=${bscscanApiKey}`);
+                    const txData = await txResponse.json();
+                    
+                    if (txData.status === '1') {
+                        const transactions = txData.result;
+                        transactionCountElement.textContent = transactions.length;
+                        
+                        // Exibir as últimas 10 transações
+                        const recentTransactions = transactions.slice(0, 10);
+                        displayTransactions(recentTransactions);
+                    } else {
+                        transactionCountElement.textContent = 'Erro ao carregar';
+                        transactionsContentElement.innerHTML = '<div class="error">Erro ao carregar transações</div>';
+                    }
+                    
+                    // Buscar preço do BNB (simulação - em um caso real, você usaria uma API de preços)
+                    // Para este exemplo, vamos simular dados de variação
+                    simulateBNBPriceChange();
+                    
+                } catch (error) {
+                    console.error('Erro ao buscar dados:', error);
+                    transactionsContentElement.innerHTML = '<div class="error">Erro ao carregar dados da carteira</div>';
+                }
+            }
+            
+            // Função para simular variação de preço do BNB
+            function simulateBNBPriceChange() {
+                // Em um caso real, você buscaria dados de uma API de preços
+                // Aqui vamos apenas simular uma variação aleatória
+                const changePercent = (Math.random() * 10 - 5).toFixed(2); // Entre -5% e +5%
+                const changeElement = document.getElementById('bnb-change');
+                
+                if (parseFloat(changePercent) > 0) {
+                    changeElement.textContent = `+${changePercent}%`;
+                    changeElement.className = 'stat-value positive';
+                } else {
+                    changeElement.textContent = `${changePercent}%`;
+                    changeElement.className = 'stat-value negative';
+                }
+            }
+            
+            // Função para exibir transações na tabela
+            function displayTransactions(transactions) {
+                if (transactions.length === 0) {
+                    transactionsContentElement.innerHTML = '<div class="error">Nenhuma transação encontrada</div>';
+                    return;
+                }
+                
+                let html = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Hash</th>
+                                <th>De</th>
+                                <th>Para</th>
+                                <th>Valor (BNB)</th>
+                                <th>Data</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                transactions.forEach(tx => {
+                    const date = new Date(tx.timeStamp * 1000).toLocaleDateString();
+                    const value = tx.value / 1e18;
+                    
+                    html += `
+                        <tr>
+                            <td class="transaction-hash" title="${tx.hash}">${formatAddress(tx.hash)}</td>
+                            <td class="transaction-hash" title="${tx.from}">${formatAddress(tx.from)}</td>
+                            <td class="transaction-hash" title="${tx.to}">${formatAddress(tx.to || 'Contrato')}</td>
+                            <td>${formatNumber(value)}</td>
+                            <td>${date}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        </tbody>
+                    </table>
+                `;
+                
+                transactionsContentElement.innerHTML = html;
+            }
+            
+            // Event listener para o botão de atualizar
+            refreshBtn.addEventListener('click', fetchWalletData);
+            
+            // Carregar dados iniciais
+            fetchWalletData();
+        });
+    </script>
+</body>
+</html>
