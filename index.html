@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Consulta de Saldo BSC</title>
+<title>Monitor BSC - Saldo e Transações</title>
 <style>
 body {
   font-family: Arial, sans-serif;
@@ -12,8 +12,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  height: 100vh;
+  padding: 30px;
 }
 input, button {
   margin: 10px;
@@ -34,51 +33,122 @@ button:hover {
   background: #161b22;
   padding: 20px;
   border-radius: 10px;
-  width: 320px;
+  width: 380px;
   text-align: center;
+}
+#transacoes {
+  margin-top: 20px;
+  background: #161b22;
+  padding: 15px;
+  border-radius: 10px;
+  width: 380px;
+  text-align: left;
+}
+.tx {
+  border-bottom: 1px solid #333;
+  padding: 8px 0;
+}
+small {
+  color: #aaa;
 }
 </style>
 </head>
 <body>
 
-<h2>Consultar saldo na BSC</h2>
+<h2>Monitor de Carteira BSC</h2>
 
 <input type="text" id="endereco" placeholder="Digite o endereço da carteira" size="42" value="0x4A0153E289b475Fd8693f415C00813dC77b50E64">
-<button onclick="obterSaldo()">Ver Saldo</button>
+<button onclick="carregarDados()">🔄 Atualizar Agora</button>
 
-<div id="resultado">Digite um endereço e clique em “Ver Saldo”.</div>
+<div id="resultado">Digite um endereço e clique em “Atualizar Agora”.</div>
+<div id="transacoes"></div>
 
 <script>
-async function obterSaldo() {
+const API_KEY = 'ESBZ6MIBSP39YA2PPTJDBYSG7N2IHH7QJA';
+const COINGECKO_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd,brl';
+
+async function obterPrecoBNB() {
+  const resp = await fetch(COINGECKO_URL);
+  const dados = await resp.json();
+  return {
+    usd: dados.binancecoin.usd,
+    brl: dados.binancecoin.brl
+  };
+}
+
+async function obterSaldo(endereco) {
+  const url = `https://api.etherscan.io/v2/api?apikey=${API_KEY}&chainid=56&module=account&action=balance&address=${endereco}&tag=latest`;
+  const resp = await fetch(url);
+  const dados = await resp.json();
+  if (dados.status === '1') {
+    return Number(dados.result) / 1e18;
+  } else {
+    throw new Error(dados.message || 'Erro ao obter saldo');
+  }
+}
+
+async function obterTransacoes(endereco) {
+  const url = `https://api.etherscan.io/v2/api?apikey=${API_KEY}&chainid=56&module=account&action=txlist&address=${endereco}&page=1&offset=5&sort=desc`;
+  const resp = await fetch(url);
+  const dados = await resp.json();
+  if (dados.status === '1') {
+    return dados.result.slice(0, 5);
+  } else {
+    throw new Error('Erro ao carregar transações');
+  }
+}
+
+async function carregarDados() {
   const endereco = document.getElementById('endereco').value.trim();
   const resultado = document.getElementById('resultado');
-  const apiKey = 'ESBZ6MIBSP39YA2PPTJDBYSG7N2IHH7QJA';
+  const listaTx = document.getElementById('transacoes');
 
   if (!endereco) {
     resultado.innerHTML = '⚠️ Digite um endereço válido.';
     return;
   }
 
-  resultado.innerHTML = '⏳ Buscando saldo...';
+  resultado.innerHTML = '⏳ Atualizando dados...';
+  listaTx.innerHTML = '';
 
   try {
-    const url = `https://api.etherscan.io/v2/api?apikey=${apiKey}&chainid=56&module=account&action=balance&address=${endereco}&tag=latest`;
-    const resposta = await fetch(url);
-    const dados = await resposta.json();
+    const [saldoBNB, preco, transacoes] = await Promise.all([
+      obterSaldo(endereco),
+      obterPrecoBNB(),
+      obterTransacoes(endereco)
+    ]);
 
-    if (dados.status === '1') {
-      const saldoWei = BigInt(dados.result);
-      const saldoBNB = Number(saldoWei) / 1e18;
-      resultado.innerHTML = `💰 Saldo: <b>${saldoBNB.toFixed(6)}</b> BNB`;
-    } else {
-      resultado.innerHTML = `❌ Erro: ${dados.message || 'Não foi possível obter o saldo.'}`;
-    }
+    const saldoUSD = saldoBNB * preco.usd;
+    const saldoBRL = saldoBNB * preco.brl;
+
+    resultado.innerHTML = `
+      💰 <b>${saldoBNB.toFixed(6)} BNB</b><br>
+      💵 USD: <b>$${saldoUSD.toFixed(2)}</b><br>
+      🇧🇷 BRL: <b>R$${saldoBRL.toFixed(2)}</b><br>
+      <small>Atualizado: ${new Date().toLocaleTimeString()}</small>
+    `;
+
+    listaTx.innerHTML = `<h3>Últimas 5 Transações:</h3>`;
+    transacoes.forEach(tx => {
+      const valorBNB = Number(tx.value) / 1e18;
+      listaTx.innerHTML += `
+        <div class="tx">
+          🔹 <b>${valorBNB.toFixed(5)} BNB</b><br>
+          De: <small>${tx.from}</small><br>
+          Para: <small>${tx.to}</small><br>
+          <small>Bloco: ${tx.blockNumber} | Hash: ${tx.hash.slice(0, 12)}...</small>
+        </div>
+      `;
+    });
 
   } catch (erro) {
-    console.error('Erro ao buscar saldo:', erro);
-    resultado.innerHTML = '❌ Erro ao conectar à API.';
+    console.error(erro);
+    resultado.innerHTML = '❌ Erro ao carregar informações.';
   }
 }
+
+// Atualização automática a cada 1 minuto
+setInterval(carregarDados, 60000);
 </script>
 
 </body>
