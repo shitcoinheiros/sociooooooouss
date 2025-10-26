@@ -3,76 +3,148 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Monitor BSC - Saldo e Transações</title>
+<title>Painel de Carteira BSC</title>
 <style>
+:root {
+  --bg-color: #0d1117;
+  --card-bg: #161b22;
+  --text-color: #fff;
+  --accent: #00b36b;
+  --danger: #e74c3c;
+}
 body {
-  font-family: Arial, sans-serif;
-  background: #0d1117;
-  color: #fff;
+  font-family: "Inter", Arial, sans-serif;
+  background: var(--bg-color);
+  color: var(--text-color);
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 30px;
+  min-height: 100vh;
 }
-input, button {
-  margin: 10px;
+header {
+  width: 100%;
+  text-align: center;
+  padding: 20px 10px;
+  background: linear-gradient(90deg, #00995c, #00b36b);
+  font-size: 1.5em;
+  font-weight: bold;
+}
+.container {
+  max-width: 420px;
+  width: 90%;
+  margin-top: 20px;
+}
+.card {
+  background: var(--card-bg);
+  border-radius: 15px;
+  padding: 20px;
+  margin-bottom: 15px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+.card h3 {
+  margin: 0 0 10px;
+}
+input {
+  width: 100%;
   padding: 10px;
-  border-radius: 8px;
+  border-radius: 10px;
   border: none;
+  margin-top: 10px;
+  outline: none;
+  background: #222;
+  color: #fff;
 }
 button {
-  background: #00b36b;
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
   color: white;
+  font-size: 1em;
+  margin-top: 10px;
   cursor: pointer;
+  transition: 0.2s;
 }
 button:hover {
   background: #00995c;
 }
-#resultado {
-  margin-top: 20px;
-  background: #161b22;
-  padding: 20px;
-  border-radius: 10px;
-  width: 380px;
-  text-align: center;
+#price-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-#transacoes {
-  margin-top: 20px;
-  background: #161b22;
-  padding: 15px;
-  border-radius: 10px;
-  width: 380px;
-  text-align: left;
+.price-up {
+  color: #00ff88;
+}
+.price-down {
+  color: #ff4d4d;
 }
 .tx {
   border-bottom: 1px solid #333;
-  padding: 8px 0;
+  padding: 10px 0;
 }
-small {
+.tx small {
   color: #aaa;
+  font-size: 0.85em;
+  word-break: break-all;
+}
+footer {
+  color: #aaa;
+  font-size: 0.8em;
+  margin-top: auto;
+  padding: 10px;
+  text-align: center;
 }
 </style>
 </head>
 <body>
 
-<h2>Monitor de Carteira BSC</h2>
+<header>📊 Painel de Carteira BSC</header>
 
-<input type="text" id="endereco" placeholder="Digite o endereço da carteira" size="42" value="0x4A0153E289b475Fd8693f415C00813dC77b50E64">
-<button onclick="carregarDados()">🔄 Atualizar Agora</button>
+<div class="container">
+  <div class="card">
+    <h3>🔗 Endereço da Carteira</h3>
+    <input type="text" id="endereco" placeholder="0x..." value="0x4A0153E289b475Fd8693f415C00813dC77b50E64">
+    <button onclick="carregarDados()">Atualizar Dados</button>
+  </div>
 
-<div id="resultado">Digite um endereço e clique em “Atualizar Agora”.</div>
-<div id="transacoes"></div>
+  <div class="card" id="price">
+    <h3>💹 Cotação do BNB</h3>
+    <div id="price-info">Carregando...</div>
+  </div>
+
+  <div class="card" id="saldo">
+    <h3>💰 Saldo da Carteira</h3>
+    <div id="resultado">Aguardando atualização...</div>
+  </div>
+
+  <div class="card" id="transacoes">
+    <h3>🧾 Últimas 5 Transações</h3>
+    <div id="listaTx">Carregando...</div>
+  </div>
+</div>
+
+<footer>Atualiza automaticamente a cada 1 minuto ⏱️</footer>
 
 <script>
 const API_KEY = 'ESBZ6MIBSP39YA2PPTJDBYSG7N2IHH7QJA';
-const COINGECKO_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd,brl';
+let precoAtual = 0;
+let precoAnterior = 0;
+let variacao = 0;
 
 async function obterPrecoBNB() {
-  const resp = await fetch(COINGECKO_URL);
+  const resp = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd,brl&include_24hr_change=true');
   const dados = await resp.json();
+  precoAnterior = precoAtual || dados.binancecoin.usd;
+  precoAtual = dados.binancecoin.usd;
+  variacao = dados.binancecoin.usd_24h_change;
   return {
     usd: dados.binancecoin.usd,
-    brl: dados.binancecoin.brl
+    brl: dados.binancecoin.brl,
+    change: dados.binancecoin.usd_24h_change
   };
 }
 
@@ -80,37 +152,44 @@ async function obterSaldo(endereco) {
   const url = `https://api.etherscan.io/v2/api?apikey=${API_KEY}&chainid=56&module=account&action=balance&address=${endereco}&tag=latest`;
   const resp = await fetch(url);
   const dados = await resp.json();
-  if (dados.status === '1') {
-    return Number(dados.result) / 1e18;
-  } else {
-    throw new Error(dados.message || 'Erro ao obter saldo');
-  }
+  if (dados.status === '1') return Number(dados.result) / 1e18;
+  throw new Error(dados.message);
 }
 
 async function obterTransacoes(endereco) {
   const url = `https://api.etherscan.io/v2/api?apikey=${API_KEY}&chainid=56&module=account&action=txlist&address=${endereco}&page=1&offset=5&sort=desc`;
   const resp = await fetch(url);
   const dados = await resp.json();
-  if (dados.status === '1') {
-    return dados.result.slice(0, 5);
-  } else {
-    throw new Error('Erro ao carregar transações');
+  if (dados.status === '1') return dados.result.slice(0,5);
+  return [];
+}
+
+async function atualizarPreco() {
+  const info = document.getElementById('price-info');
+  try {
+    const preco = await obterPrecoBNB();
+    const cor = preco.change >= 0 ? 'price-up' : 'price-down';
+    info.innerHTML = `
+      <div>
+        <b>$${preco.usd.toFixed(2)}</b> / R$${preco.brl.toFixed(2)}
+      </div>
+      <div class="${cor}">
+        ${preco.change >= 0 ? '▲' : '▼'} ${preco.change.toFixed(2)}%
+      </div>
+    `;
+  } catch (e) {
+    info.innerHTML = 'Erro ao carregar cotação.';
   }
 }
 
 async function carregarDados() {
   const endereco = document.getElementById('endereco').value.trim();
   const resultado = document.getElementById('resultado');
-  const listaTx = document.getElementById('transacoes');
+  const listaTx = document.getElementById('listaTx');
 
-  if (!endereco) {
-    resultado.innerHTML = '⚠️ Digite um endereço válido.';
-    return;
-  }
-
-  resultado.innerHTML = '⏳ Atualizando dados...';
-  listaTx.innerHTML = '';
-
+  resultado.innerHTML = '⏳ Atualizando...';
+  listaTx.innerHTML = '⏳ Carregando transações...';
+  
   try {
     const [saldoBNB, preco, transacoes] = await Promise.all([
       obterSaldo(endereco),
@@ -120,35 +199,41 @@ async function carregarDados() {
 
     const saldoUSD = saldoBNB * preco.usd;
     const saldoBRL = saldoBNB * preco.brl;
-
     resultado.innerHTML = `
-      💰 <b>${saldoBNB.toFixed(6)} BNB</b><br>
-      💵 USD: <b>$${saldoUSD.toFixed(2)}</b><br>
-      🇧🇷 BRL: <b>R$${saldoBRL.toFixed(2)}</b><br>
+      <b>${saldoBNB.toFixed(6)} BNB</b><br>
+      💵 USD: $${saldoUSD.toFixed(2)}<br>
+      🇧🇷 BRL: R$${saldoBRL.toFixed(2)}<br>
       <small>Atualizado: ${new Date().toLocaleTimeString()}</small>
     `;
 
-    listaTx.innerHTML = `<h3>Últimas 5 Transações:</h3>`;
-    transacoes.forEach(tx => {
-      const valorBNB = Number(tx.value) / 1e18;
-      listaTx.innerHTML += `
-        <div class="tx">
-          🔹 <b>${valorBNB.toFixed(5)} BNB</b><br>
-          De: <small>${tx.from}</small><br>
-          Para: <small>${tx.to}</small><br>
-          <small>Bloco: ${tx.blockNumber} | Hash: ${tx.hash.slice(0, 12)}...</small>
-        </div>
-      `;
-    });
-
-  } catch (erro) {
-    console.error(erro);
-    resultado.innerHTML = '❌ Erro ao carregar informações.';
+    listaTx.innerHTML = '';
+    if (transacoes.length === 0) {
+      listaTx.innerHTML = '<i>Nenhuma transação encontrada.</i>';
+    } else {
+      transacoes.forEach(tx => {
+        const valorBNB = Number(tx.value) / 1e18;
+        listaTx.innerHTML += `
+          <div class="tx">
+            🔹 <b>${valorBNB.toFixed(5)} BNB</b><br>
+            <small>De: ${tx.from}</small><br>
+            <small>Para: ${tx.to}</small><br>
+            <small>Bloco: ${tx.blockNumber}</small>
+          </div>
+        `;
+      });
+    }
+  } catch (e) {
+    resultado.innerHTML = '❌ Erro ao carregar saldo.';
+    console.error(e);
   }
+
+  atualizarPreco();
 }
 
-// Atualização automática a cada 1 minuto
 setInterval(carregarDados, 60000);
+setInterval(atualizarPreco, 15000); // preço atualizado a cada 15s
+
+carregarDados();
 </script>
 
 </body>
