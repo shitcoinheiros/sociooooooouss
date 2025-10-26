@@ -1,124 +1,85 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Monitor BNB On-Chain</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Consulta de Saldo BSC</title>
 <style>
 body {
-  background: #0d1117;
-  color: #e6edf3;
   font-family: Arial, sans-serif;
-  padding: 20px;
+  background: #0d1117;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
 }
-h1 { text-align: center; color: #f3ba2f; }
-.card {
+input, button {
+  margin: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+}
+button {
+  background: #00b36b;
+  color: white;
+  cursor: pointer;
+}
+button:hover {
+  background: #00995c;
+}
+#resultado {
+  margin-top: 20px;
   background: #161b22;
   padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 0 10px rgba(243,186,47,0.2);
-  margin: 20px auto;
-  max-width: 600px;
+  border-radius: 10px;
+  width: 320px;
+  text-align: center;
 }
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 15px;
-}
-th, td {
-  padding: 8px;
-  border-bottom: 1px solid #333;
-  text-align: left;
-}
-.positive { color: #00ff88; }
-.negative { color: #ff4d4d; }
-a { color: #f3ba2f; text-decoration: none; }
-a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
 
-<h1>Monitor de Carteira BNB</h1>
-<div class="card" id="info">Carregando informações...</div>
+<h2>Consultar saldo na BSC</h2>
 
-<div class="card">
-  <h3>Transações Recebidas</h3>
-  <table id="txs">
-    <thead><tr><th>Data</th><th>De</th><th>Valor (BNB)</th><th>Tx</th></tr></thead>
-    <tbody></tbody>
-  </table>
-</div>
+<input type="text" id="endereco" placeholder="Digite o endereço da carteira" size="42" value="0x4A0153E289b475Fd8693f415C00813dC77b50E64">
+<button onclick="obterSaldo()">Ver Saldo</button>
+
+<div id="resultado">Digite um endereço e clique em “Ver Saldo”.</div>
 
 <script>
-const API_KEY = "ESBZ6MIBSP39YA2PPTJDBYSG7N2IHH7QJA";
-const ADDRESS = "0x4A0153E289b475Fd8693f415C00813dC77b50E64";
-const CHAIN_ID = 56; // Binance Smart Chain
+async function obterSaldo() {
+  const endereco = document.getElementById('endereco').value.trim();
+  const resultado = document.getElementById('resultado');
+  const apiKey = 'ESBZ6MIBSP39YA2PPTJDBYSG7N2IHH7QJA';
 
-function formatBNB(wei) { return Number(wei) / 1e18; }
-function fmt(num, dec=4) { return Number(num).toLocaleString("en-US", { maximumFractionDigits: dec }); }
+  if (!endereco) {
+    resultado.innerHTML = '⚠️ Digite um endereço válido.';
+    return;
+  }
 
-async function getBalance() {
-  const url = `https://api.etherscan.io/v2/api?apikey=${API_KEY}&chainid=${CHAIN_ID}&module=account&action=balance&address=${ADDRESS}&tag=latest`;
-  const res = await fetch(url);
-  const data = await res.json();
-  console.log("Saldo:", data);
-  return data?.result?.balance ? formatBNB(data.result.balance) : 0;
-}
+  resultado.innerHTML = '⏳ Buscando saldo...';
 
-async function getTransactions() {
-  const url = `https://api.etherscan.io/v2/api?apikey=${API_KEY}&chainid=${CHAIN_ID}&module=account&action=txlist&address=${ADDRESS}&sort=desc&page=1&offset=20`;
-  const res = await fetch(url);
-  const data = await res.json();
-  console.log("Txs:", data);
-  if (!Array.isArray(data?.result)) return [];
-  return data.result.filter(tx => tx.to?.toLowerCase() === ADDRESS.toLowerCase());
-}
-
-async function getBNBPrice() {
-  const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd,brl&include_24hr_change=true");
-  const data = await res.json();
-  return data.binancecoin;
-}
-
-async function loadData() {
   try {
-    const [balanceBNB, txs, price] = await Promise.all([getBalance(), getTransactions(), getBNBPrice()]);
-    const usdValue = balanceBNB * price.usd;
-    const brlValue = balanceBNB * price.brl;
+    const url = `https://api.etherscan.io/v2/api?apikey=${apiKey}&chainid=56&module=account&action=balance&address=${endereco}&tag=latest`;
+    const resposta = await fetch(url);
+    const dados = await resposta.json();
 
-    const info = document.getElementById("info");
-    info.innerHTML = `
-      <strong>Endereço:</strong> ${ADDRESS}<br>
-      <strong>Saldo:</strong> ${fmt(balanceBNB)} BNB<br>
-      <strong>USD:</strong> $${fmt(usdValue, 2)}<br>
-      <strong>BRL:</strong> R$${fmt(brlValue, 2)}<br>
-      <strong>BNB 24h:</strong> 
-      <span class="${price.usd_24h_change >= 0 ? 'positive' : 'negative'}">
-        ${price.usd_24h_change.toFixed(2)}%
-      </span>
-    `;
+    if (dados.status === '1') {
+      const saldoWei = BigInt(dados.result);
+      const saldoBNB = Number(saldoWei) / 1e18;
+      resultado.innerHTML = `💰 Saldo: <b>${saldoBNB.toFixed(6)}</b> BNB`;
+    } else {
+      resultado.innerHTML = `❌ Erro: ${dados.message || 'Não foi possível obter o saldo.'}`;
+    }
 
-    const tbody = document.querySelector("#txs tbody");
-    tbody.innerHTML = "";
-    txs.slice(0, 10).forEach(tx => {
-      const date = new Date(tx.timeStamp * 1000).toLocaleString("pt-BR");
-      const valueBNB = formatBNB(tx.value);
-      tbody.innerHTML += `
-        <tr>
-          <td>${date}</td>
-          <td>${tx.from.slice(0, 6)}...${tx.from.slice(-4)}</td>
-          <td>${fmt(valueBNB)}</td>
-          <td><a href="https://bscscan.com/tx/${tx.hash}" target="_blank">ver</a></td>
-        </tr>`;
-    });
-  } catch (e) {
-    console.error("Erro geral:", e);
-    document.getElementById("info").textContent = "Erro ao carregar dados 😢";
+  } catch (erro) {
+    console.error('Erro ao buscar saldo:', erro);
+    resultado.innerHTML = '❌ Erro ao conectar à API.';
   }
 }
-
-loadData();
-setInterval(loadData, 60000);
 </script>
+
 </body>
 </html>
