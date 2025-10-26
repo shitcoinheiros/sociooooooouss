@@ -1,237 +1,588 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Painel BNB Profissional</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel BNB Profissional</title>
 
-<!-- Chart.js CDN -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<style>
-:root {
-  --bg-color: #0b0f19;
-  --card-bg: #111726;
-  --text: #e0e6f1;
-  --accent: #f3ba2f;
-  --positive: #00ff88;
-  --negative: #ff4d4d;
-}
-body {
-  font-family: "Inter", Arial, sans-serif;
-  background: var(--bg-color);
-  color: var(--text);
-  margin: 0;
-  padding: 0;
-}
-header {
-  background: linear-gradient(90deg, #f3ba2f, #e6a600);
-  color: #0b0f19;
-  padding: 18px;
-  text-align: center;
-  font-weight: 700;
-  font-size: 1.4em;
-  letter-spacing: 1px;
-}
-.container {
-  max-width: 800px;
-  margin: 20px auto;
-  padding: 0 10px;
-}
-.card {
-  background: var(--card-bg);
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-}
-h3 {
-  margin-top: 0;
-  border-left: 4px solid var(--accent);
-  padding-left: 8px;
-  font-size: 1.1em;
-  color: var(--accent);
-}
-#price-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 1.1em;
-}
-.price-up { color: var(--positive); }
-.price-down { color: var(--negative); }
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-.tx {
-  border-bottom: 1px solid #222;
-  padding: 8px 0;
-  font-size: 0.9em;
-}
-.tx small { color: #999; }
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --card-hover: #334155;
+      --text: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --accent: #3b82f6;
+      --accent-light: #60a5fa;
+      --positive: #10b981;
+      --negative: #ef4444;
+      --border: #475569;
+      --shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+      --header-bg: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+    }
 
-footer {
-  text-align: center;
-  color: #777;
-  font-size: 0.8em;
-  padding: 15px;
-  margin-top: 30px;
-}
-canvas {
-  width: 100% !important;
-  height: 300px !important;
-}
-@media (max-width: 600px) {
-  canvas { height: 220px !important; }
-}
-</style>
+    * {
+      box-sizing: border-box;
+      transition: all 0.2s ease;
+    }
+
+    body {
+      font-family: "Inter", Arial, sans-serif;
+      background: var(--bg-color);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--header-bg);
+      color: white;
+      padding: 22px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 1.5rem;
+      letter-spacing: 0.5px;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    header::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 30px auto;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+
+    @media (min-width: 768px) {
+      .container {
+        grid-template-columns: 2fr 1fr;
+      }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+      background: var(--card-hover);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-icon {
+      background: rgba(59, 130, 246, 0.1);
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 12px;
+      color: var(--accent);
+      font-size: 1.2rem;
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .price-card {
+      grid-column: 1 / -1;
+    }
+
+    #price-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 1.1rem;
+      margin-bottom: 20px;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 15px;
+      border-radius: 12px;
+    }
+
+    .price-main {
+      font-size: 1.8rem;
+      font-weight: 700;
+    }
+
+    .price-secondary {
+      font-size: 1.2rem;
+      color: var(--text-secondary);
+    }
+
+    .price-change {
+      display: flex;
+      align-items: center;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 8px;
+    }
+
+    .price-up {
+      color: var(--positive);
+      background: rgba(16, 185, 129, 0.1);
+    }
+
+    .price-down {
+      color: var(--negative);
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    .tx {
+      border-bottom: 1px solid var(--border);
+      padding: 12px 0;
+      font-size: 0.9rem;
+    }
+
+    .tx:last-child {
+      border-bottom: none;
+    }
+
+    .tx-amount {
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 5px;
+    }
+
+    .tx-details {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      margin-bottom: 5px;
+    }
+
+    .tx-link {
+      color: var(--accent-light);
+      text-decoration: none;
+      font-size: 0.8rem;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .tx-link:hover {
+      text-decoration: underline;
+    }
+
+    .balance-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin: 15px 0;
+      color: var(--accent);
+    }
+
+    .balance-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .balance-item {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .balance-label {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-bottom: 5px;
+    }
+
+    .balance-amount {
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+
+    footer {
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      padding: 20px;
+      margin-top: 40px;
+      border-top: 1px solid var(--border);
+    }
+
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: var(--accent);
+      animation: spin 1s ease-in-out infinite;
+      margin-right: 10px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .last-update {
+      text-align: center;
+      margin-top: 15px;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 300px !important;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 0 15px;
+        margin: 20px auto;
+      }
+      
+      .card {
+        padding: 18px;
+      }
+      
+      #price-info {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+      }
+      
+      .balance-details {
+        grid-template-columns: 1fr;
+      }
+      
+      canvas {
+        height: 220px !important;
+      }
+    }
+  </style>
 </head>
 <body>
 
-<header>📊 Painel Profissional — BNB Tracker</header>
+<header>
+  <div class="header-content">
+    📊 Painel BNB Profissional
+  </div>
+</header>
 
 <div class="container">
-
-  <div class="card">
-    <h3>💹 Cotação e Gráfico BNB/USD (24h)</h3>
-    <div id="price-info">Carregando...</div>
+  <div class="card price-card">
+    <div class="card-header">
+      <div class="card-icon">💹</div>
+      <h3>Cotação e Gráfico BNB/USD (24h)</h3>
+    </div>
+    <div id="price-info">
+      <div>
+        <span class="price-main">Carregando...</span>
+        <span class="price-secondary"></span>
+      </div>
+      <div class="price-change">
+        <span class="loading"></span> Atualizando...
+      </div>
+    </div>
     <canvas id="chartBNB"></canvas>
+    <div class="last-update" id="price-update-time"></div>
   </div>
 
   <div class="card" id="saldo">
-    <h3>💰 Saldo da Carteira</h3>
-    <div id="saldo-info">Aguardando atualização...</div>
+    <div class="card-header">
+      <div class="card-icon">💰</div>
+      <h3>Saldo da Carteira</h3>
+    </div>
+    <div id="saldo-info">
+      <div class="loading"></div> Aguardando atualização...
+    </div>
+    <div class="last-update" id="balance-update-time"></div>
   </div>
 
   <div class="card" id="transacoes">
-    <h3>🧾 Últimas 5 Transações</h3>
-    <div id="tx-list">Carregando...</div>
+    <div class="card-header">
+      <div class="card-icon">🧾</div>
+      <h3>Últimas 5 Transações</h3>
+    </div>
+    <div id="tx-list">
+      <div class="loading"></div> Carregando...
+    </div>
+    <div class="last-update" id="tx-update-time"></div>
   </div>
-
 </div>
 
-<footer>Atualizado automaticamente a cada 1 minuto • Dados via CoinGecko & BscScan</footer>
+<footer>
+  Dados carregados ao abrir a página • Fonte: CoinGecko & BscScan
+</footer>
 
 <script>
-const ADDRESS = "0x4A0153E289b475Fd8693f415C00813dC77b50E64";
-const API_KEY = "ESBZ6MIBSP39YA2PPTJDBYSG7N2IHH7QJA";
-let chart;
+  const ADDRESS = "0x4A0153E289b475Fd8693f415C00813dC77b50E64";
+  const API_KEY = "ESBZ6MIBSP39YA2PPTJDBYSG7N2IHH7QJA";
+  let chart;
 
-// ======== 🔹 Funções utilitárias ========
-function formatNumber(num, dec = 2) {
-  return Number(num).toLocaleString("pt-BR", { minimumFractionDigits: dec, maximumFractionDigits: dec });
-}
-function weiToBNB(wei) { return Number(wei) / 1e18; }
+  // ======== 🔹 Funções utilitárias ========
+  function formatNumber(num, dec = 2) {
+    return Number(num).toLocaleString("pt-BR", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  }
+  
+  function weiToBNB(wei) { 
+    return Number(wei) / 1e18; 
+  }
 
-// ======== 🔹 Dados de Preço e Gráfico ========
-async function getBNBPrice() {
-  const url = "https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd,brl&include_24hr_change=true";
-  const res = await fetch(url);
-  const data = await res.json();
-  return data.binancecoin;
-}
+  function updateTime(elementId) {
+    const now = new Date();
+    document.getElementById(elementId).textContent = `Atualizado: ${now.toLocaleTimeString('pt-BR')}`;
+  }
 
-async function getBNBChart() {
-  const res = await fetch("https://api.coingecko.com/api/v3/coins/binancecoin/market_chart?vs_currency=usd&days=1");
-  const data = await res.json();
-  return data.prices.map(p => ({ time: new Date(p[0]).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' }), price: p[1] }));
-}
+  // ======== 🔹 Dados de Preço e Gráfico ========
+  async function getBNBPrice() {
+    try {
+      const url = "https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd,brl&include_24hr_change=true";
+      const res = await fetch(url);
+      const data = await res.json();
+      return data.binancecoin;
+    } catch (error) {
+      console.error("Erro ao buscar preço:", error);
+      return null;
+    }
+  }
 
-// ======== 🔹 BscScan API ========
-async function getBalance() {
-  const url = `https://api.etherscan.io/v2/api?apikey=${API_KEY}&chainid=56&module=account&action=balance&address=${ADDRESS}&tag=latest`;
-  const res = await fetch(url);
-  const data = await res.json();
-  return data.status === "1" ? weiToBNB(data.result) : 0;
-}
+  async function getBNBChart() {
+    try {
+      const res = await fetch("https://api.coingecko.com/api/v3/coins/binancecoin/market_chart?vs_currency=usd&days=1");
+      const data = await res.json();
+      return data.prices.map(p => ({ 
+        time: new Date(p[0]).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' }), 
+        price: p[1] 
+      }));
+    } catch (error) {
+      console.error("Erro ao buscar gráfico:", error);
+      return [];
+    }
+  }
 
-async function getTransactions() {
-  const url = `https://api.etherscan.io/v2/api?apikey=${API_KEY}&chainid=56&module=account&action=txlist&address=${ADDRESS}&page=1&offset=5&sort=desc`;
-  const res = await fetch(url);
-  const data = await res.json();
-  return data.status === "1" ? data.result.slice(0,5) : [];
-}
+  // ======== 🔹 BscScan API ========
+  async function getBalance() {
+    try {
+      const url = `https://api.etherscan.io/v2/api?apikey=${API_KEY}&chainid=56&module=account&action=balance&address=${ADDRESS}&tag=latest`;
+      const res = await fetch(url);
+      const data = await res.json();
+      return data.status === "1" ? weiToBNB(data.result) : 0;
+    } catch (error) {
+      console.error("Erro ao buscar saldo:", error);
+      return 0;
+    }
+  }
 
-// ======== 🔹 Atualiza cotação ========
-async function updatePrice() {
-  const info = document.getElementById("price-info");
-  const price = await getBNBPrice();
-  const change = price.usd_24h_change;
-  const cor = change >= 0 ? "price-up" : "price-down";
-  info.innerHTML = `
-    <div><b>$${formatNumber(price.usd)}</b> / R$${formatNumber(price.brl)}</div>
-    <div class="${cor}">${change >= 0 ? "▲" : "▼"} ${formatNumber(change)}%</div>
-  `;
-}
+  async function getTransactions() {
+    try {
+      const url = `https://api.etherscan.io/v2/api?apikey=${API_KEY}&chainid=56&module=account&action=txlist&address=${ADDRESS}&page=1&offset=5&sort=desc`;
+      const res = await fetch(url);
+      const data = await res.json();
+      return data.status === "1" ? data.result.slice(0,5) : [];
+    } catch (error) {
+      console.error("Erro ao buscar transações:", error);
+      return [];
+    }
+  }
 
-// ======== 🔹 Atualiza gráfico ========
-async function renderChart() {
-  const data = await getBNBChart();
-  const ctx = document.getElementById("chartBNB").getContext("2d");
-  if (chart) chart.destroy();
-  chart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: data.map(d => d.time),
-      datasets: [{
-        label: "Preço BNB (USD)",
-        data: data.map(d => d.price),
-        borderColor: "#f3ba2f",
-        backgroundColor: "rgba(243,186,47,0.1)",
-        tension: 0.3,
-        fill: true
-      }]
-    },
-    options: {
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { display: false },
-        y: {
-          ticks: { color: "#ccc" },
-          grid: { color: "rgba(255,255,255,0.05)" }
+  // ======== 🔹 Atualiza cotação ========
+  async function updatePrice() {
+    const info = document.getElementById("price-info");
+    const price = await getBNBPrice();
+    
+    if (!price) {
+      info.innerHTML = `
+        <div>
+          <span class="price-main">Erro ao carregar</span>
+          <span class="price-secondary"></span>
+        </div>
+        <div class="price-down">
+          ❌ Falha na conexão
+        </div>
+      `;
+      return;
+    }
+    
+    const change = price.usd_24h_change;
+    const cor = change >= 0 ? "price-up" : "price-down";
+    const symbol = change >= 0 ? "▲" : "▼";
+    
+    info.innerHTML = `
+      <div>
+        <span class="price-main">$${formatNumber(price.usd)}</span>
+        <span class="price-secondary">/ R$${formatNumber(price.brl)}</span>
+      </div>
+      <div class="${cor}">${symbol} ${formatNumber(change)}% (24h)</div>
+    `;
+    
+    updateTime('price-update-time');
+  }
+
+  // ======== 🔹 Atualiza gráfico ========
+  async function renderChart() {
+    const data = await getBNBChart();
+    const ctx = document.getElementById("chartBNB").getContext("2d");
+    
+    if (chart) chart.destroy();
+    
+    chart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: data.map(d => d.time),
+        datasets: [{
+          label: "Preço BNB (USD)",
+          data: data.map(d => d.price),
+          borderColor: "#3b82f6",
+          backgroundColor: "rgba(59, 130, 246, 0.1)",
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          tension: 0.3,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { 
+          legend: { display: false },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            backgroundColor: 'rgba(30, 41, 59, 0.9)',
+            titleColor: '#3b82f6',
+            bodyColor: '#f1f5f9',
+            borderColor: '#3b82f6',
+            borderWidth: 1
+          }
+        },
+        scales: {
+          x: { 
+            display: false,
+            grid: { display: false }
+          },
+          y: {
+            ticks: { color: "#94a3b8" },
+            grid: { color: "rgba(255,255,255,0.05)" }
+          }
+        },
+        interaction: {
+          mode: 'nearest',
+          axis: 'x',
+          intersect: false
         }
       }
-    }
-  });
-}
+    });
+  }
 
-// ======== 🔹 Atualiza saldo e transações ========
-async function updateWallet() {
-  const saldoEl = document.getElementById("saldo-info");
-  const txEl = document.getElementById("tx-list");
-  saldoEl.innerHTML = "Atualizando...";
-  const [balanceBNB, price, txs] = await Promise.all([getBalance(), getBNBPrice(), getTransactions()]);
-  const saldoUSD = balanceBNB * price.usd;
-  const saldoBRL = balanceBNB * price.brl;
-  saldoEl.innerHTML = `
-    <b>${formatNumber(balanceBNB,6)} BNB</b><br>
-    💵 USD: $${formatNumber(saldoUSD)}<br>
-    🇧🇷 BRL: R$${formatNumber(saldoBRL)}<br>
-    <small>Atualizado: ${new Date().toLocaleTimeString()}</small>
-  `;
-  txEl.innerHTML = "";
-  if (txs.length === 0) txEl.innerHTML = "<i>Nenhuma transação recente.</i>";
-  else txs.forEach(tx => {
-    txEl.innerHTML += `
-      <div class="tx">
-        🔹 <b>${formatNumber(weiToBNB(tx.value),5)} BNB</b><br>
-        <small>De: ${tx.from.slice(0,6)}...${tx.from.slice(-4)}</small><br>
-        <small>Para: ${tx.to.slice(0,6)}...${tx.to.slice(-4)}</small><br>
-        <small><a href="https://bscscan.com/tx/${tx.hash}" target="_blank" style="color:#f3ba2f;">Ver TX</a></small>
+  // ======== 🔹 Atualiza saldo e transações ========
+  async function updateWallet() {
+    const saldoEl = document.getElementById("saldo-info");
+    const txEl = document.getElementById("tx-list");
+    
+    saldoEl.innerHTML = '<div class="loading"></div> Atualizando...';
+    
+    const [balanceBNB, price, txs] = await Promise.all([
+      getBalance(), 
+      getBNBPrice(), 
+      getTransactions()
+    ]);
+    
+    // Atualizar saldo
+    const saldoUSD = balanceBNB * price.usd;
+    const saldoBRL = balanceBNB * price.brl;
+    
+    saldoEl.innerHTML = `
+      <div class="balance-value">${formatNumber(balanceBNB,6)} BNB</div>
+      <div class="balance-details">
+        <div class="balance-item">
+          <div class="balance-label">Valor em USD</div>
+          <div class="balance-amount">$${formatNumber(saldoUSD)}</div>
+        </div>
+        <div class="balance-item">
+          <div class="balance-label">Valor em BRL</div>
+          <div class="balance-amount">R$${formatNumber(saldoBRL)}</div>
+        </div>
       </div>
     `;
-  });
-}
+    
+    updateTime('balance-update-time');
+    
+    // Atualizar transações
+    txEl.innerHTML = "";
+    
+    if (txs.length === 0) {
+      txEl.innerHTML = "<div style='text-align: center; padding: 20px; color: var(--text-secondary);'><i>Nenhuma transação recente.</i></div>";
+    } else {
+      txs.forEach(tx => {
+        const txElement = document.createElement('div');
+        txElement.className = 'tx';
+        txElement.innerHTML = `
+          <div class="tx-amount">${formatNumber(weiToBNB(tx.value),5)} BNB</div>
+          <div class="tx-details">
+            De: ${tx.from.slice(0,8)}...${tx.from.slice(-6)}<br>
+            Para: ${tx.to.slice(0,8)}...${tx.to.slice(-6)}
+          </div>
+          <a href="https://bscscan.com/tx/${tx.hash}" target="_blank" class="tx-link">
+            Ver transação ↗
+          </a>
+        `;
+        txEl.appendChild(txElement);
+      });
+    }
+    
+    updateTime('tx-update-time');
+  }
 
-// ======== 🔹 Loop de atualização ========
-async function atualizarPainel() {
-  await Promise.all([
-    updatePrice(),
-    updateWallet(),
-    renderChart()
-  ]);
-}
-atualizarPainel();
-setInterval(atualizarPainel, 60000);
-setInterval(updatePrice, 15000);
+  // ======== 🔹 Carregar dados uma vez ========
+  async function carregarDados() {
+    await Promise.all([
+      updatePrice(),
+      updateWallet(),
+      renderChart()
+    ]);
+  }
+
+  // Inicializar o painel apenas uma vez
+  document.addEventListener('DOMContentLoaded', () => {
+    carregarDados();
+  });
 </script>
 
 </body>
