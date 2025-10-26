@@ -3,53 +3,75 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Monitor de Carteira BNB</title>
+<title>Monitor BNB On-Chain</title>
 <style>
-body { font-family: Arial, sans-serif; background: #111; color: #eee; text-align: center; padding: 20px; }
-.card { background: #1a1a1a; border-radius: 10px; padding: 20px; margin: 10px auto; width: 90%; max-width: 500px; box-shadow: 0 0 10px #000; }
-h1 { color: #f0b90b; }
-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-td, th { padding: 6px; border-bottom: 1px solid #333; font-size: 14px; }
-th { color: #f0b90b; }
+body {
+  background: #0d1117;
+  color: #e6edf3;
+  font-family: Arial, sans-serif;
+  padding: 20px;
+}
+h1 { text-align: center; color: #f3ba2f; }
+.card {
+  background: #161b22;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 0 10px rgba(243,186,47,0.2);
+  margin: 20px auto;
+  max-width: 600px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+th, td {
+  padding: 8px;
+  border-bottom: 1px solid #333;
+  text-align: left;
+}
+.positive { color: #00ff88; }
+.negative { color: #ff4d4d; }
+a { color: #f3ba2f; text-decoration: none; }
+a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
 
-<h1>Carteira Monitorada</h1>
-<div class="card">
-  <h2>Endereço</h2>
-  <div id="address">0x4A0153E289b475Fd8693f415C00813dC77b50E64</div>
-
-  <h2>Saldo</h2>
-  <p id="bnb">Carregando...</p>
-  <p id="usd"></p>
-  <p id="brl"></p>
-
-  <h2>Variação BNB 24h</h2>
-  <p id="bnbChange">Carregando...</p>
-</div>
+<h1>Monitor de Carteira BNB</h1>
+<div class="card" id="info">Carregando informações...</div>
 
 <div class="card">
-  <h2>Últimas Transações Recebidas</h2>
-  <table id="txsTable">
-    <tr><th>Hash</th><th>De</th><th>Valor (BNB)</th></tr>
+  <h3>Transações Recebidas</h3>
+  <table id="txs">
+    <thead><tr><th>Data</th><th>De</th><th>Valor (BNB)</th><th>Tx</th></tr></thead>
+    <tbody></tbody>
   </table>
 </div>
 
 <script>
+const API_KEY = "ESBZ6MIBSP39YA2PPTJDBYSG7N2IHH7QJA";
 const ADDRESS = "0x4A0153E289b475Fd8693f415C00813dC77b50E64";
-const API_KEY = "ESBZ6MIBSP39YA2PPTJDBYSG7N2IHH7QJA"; // gere em https://bscscan.com/myapikey
+const CHAIN_ID = 56; // Binance Smart Chain
+
+function formatBNB(wei) { return Number(wei) / 1e18; }
+function fmt(num, dec=4) { return Number(num).toLocaleString("en-US", { maximumFractionDigits: dec }); }
 
 async function getBalance() {
-  const res = await fetch(`https://api.bscscan.com/api/v2/address/${ADDRESS}/balance?apikey=${API_KEY}`);
+  const url = `https://api.etherscan.io/v2/api?apikey=${API_KEY}&chainid=${CHAIN_ID}&module=account&action=balance&address=${ADDRESS}&tag=latest`;
+  const res = await fetch(url);
   const data = await res.json();
-  return data.result ? Number(data.result.balance) / 1e18 : 0;
+  console.log("Saldo:", data);
+  return data?.result?.balance ? formatBNB(data.result.balance) : 0;
 }
 
 async function getTransactions() {
-  const res = await fetch(`https://api.bscscan.com/api/v2/address/${ADDRESS}/transactions?sort=desc&apikey=${API_KEY}`);
+  const url = `https://api.etherscan.io/v2/api?apikey=${API_KEY}&chainid=${CHAIN_ID}&module=account&action=txlist&address=${ADDRESS}&sort=desc&page=1&offset=20`;
+  const res = await fetch(url);
   const data = await res.json();
-  return Array.isArray(data.result) ? data.result.filter(tx => tx.to?.toLowerCase() === ADDRESS.toLowerCase()) : [];
+  console.log("Txs:", data);
+  if (!Array.isArray(data?.result)) return [];
+  return data.result.filter(tx => tx.to?.toLowerCase() === ADDRESS.toLowerCase());
 }
 
 async function getBNBPrice() {
@@ -60,35 +82,43 @@ async function getBNBPrice() {
 
 async function loadData() {
   try {
-    const [balance, txs, price] = await Promise.all([
-      getBalance(),
-      getTransactions(),
-      getBNBPrice()
-    ]);
+    const [balanceBNB, txs, price] = await Promise.all([getBalance(), getTransactions(), getBNBPrice()]);
+    const usdValue = balanceBNB * price.usd;
+    const brlValue = balanceBNB * price.brl;
 
-    document.getElementById("bnb").textContent = `${balance.toFixed(6)} BNB`;
-    document.getElementById("usd").textContent = `≈ ${(balance * price.usd).toFixed(2)} USD`;
-    document.getElementById("brl").textContent = `≈ R$ ${(balance * price.brl).toFixed(2)} BRL`;
+    const info = document.getElementById("info");
+    info.innerHTML = `
+      <strong>Endereço:</strong> ${ADDRESS}<br>
+      <strong>Saldo:</strong> ${fmt(balanceBNB)} BNB<br>
+      <strong>USD:</strong> $${fmt(usdValue, 2)}<br>
+      <strong>BRL:</strong> R$${fmt(brlValue, 2)}<br>
+      <strong>BNB 24h:</strong> 
+      <span class="${price.usd_24h_change >= 0 ? 'positive' : 'negative'}">
+        ${price.usd_24h_change.toFixed(2)}%
+      </span>
+    `;
 
-    const change = price.usd_24h_change.toFixed(2);
-    document.getElementById("bnbChange").textContent =
-      (change >= 0 ? "▲ " : "▼ ") + change + "%";
-
-    const table = document.getElementById("txsTable");
+    const tbody = document.querySelector("#txs tbody");
+    tbody.innerHTML = "";
     txs.slice(0, 10).forEach(tx => {
-      const row = table.insertRow();
-      row.innerHTML = `
-        <td><a href="https://bscscan.com/tx/${tx.hash}" target="_blank">${tx.hash.slice(0, 10)}...</a></td>
-        <td>${tx.from.slice(0, 10)}...</td>
-        <td>${(tx.value / 1e18).toFixed(4)}</td>
-      `;
+      const date = new Date(tx.timeStamp * 1000).toLocaleString("pt-BR");
+      const valueBNB = formatBNB(tx.value);
+      tbody.innerHTML += `
+        <tr>
+          <td>${date}</td>
+          <td>${tx.from.slice(0, 6)}...${tx.from.slice(-4)}</td>
+          <td>${fmt(valueBNB)}</td>
+          <td><a href="https://bscscan.com/tx/${tx.hash}" target="_blank">ver</a></td>
+        </tr>`;
     });
-  } catch (err) {
-    console.error("Erro geral:", err);
+  } catch (e) {
+    console.error("Erro geral:", e);
+    document.getElementById("info").textContent = "Erro ao carregar dados 😢";
   }
 }
 
 loadData();
+setInterval(loadData, 60000);
 </script>
 </body>
 </html>
