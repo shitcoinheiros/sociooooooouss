@@ -3,237 +3,235 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Painel de Carteira BSC</title>
+<title>Painel BNB Profissional</title>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
 :root {
-  --bg-color: #0d1117;
-  --card-bg: #161b22;
-  --text-color: #fff;
-  --accent: #00b36b;
-  --danger: #e74c3c;
+  --bg-color: #0b0f19;
+  --card-bg: #111726;
+  --text: #e0e6f1;
+  --accent: #f3ba2f;
+  --positive: #00ff88;
+  --negative: #ff4d4d;
 }
 body {
   font-family: "Inter", Arial, sans-serif;
   background: var(--bg-color);
-  color: var(--text-color);
+  color: var(--text);
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 100vh;
 }
 header {
-  width: 100%;
+  background: linear-gradient(90deg, #f3ba2f, #e6a600);
+  color: #0b0f19;
+  padding: 18px;
   text-align: center;
-  padding: 20px 10px;
-  background: linear-gradient(90deg, #00995c, #00b36b);
-  font-size: 1.5em;
-  font-weight: bold;
+  font-weight: 700;
+  font-size: 1.4em;
+  letter-spacing: 1px;
 }
 .container {
-  max-width: 420px;
-  width: 90%;
-  margin-top: 20px;
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 0 10px;
 }
 .card {
   background: var(--card-bg);
-  border-radius: 15px;
+  border-radius: 12px;
   padding: 20px;
-  margin-bottom: 15px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  margin-bottom: 20px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.4);
 }
-.card h3 {
-  margin: 0 0 10px;
-}
-input {
-  width: 100%;
-  padding: 10px;
-  border-radius: 10px;
-  border: none;
-  margin-top: 10px;
-  outline: none;
-  background: #222;
-  color: #fff;
-}
-button {
-  width: 100%;
-  padding: 10px;
-  border-radius: 10px;
-  border: none;
-  background: var(--accent);
-  color: white;
-  font-size: 1em;
-  margin-top: 10px;
-  cursor: pointer;
-  transition: 0.2s;
-}
-button:hover {
-  background: #00995c;
+h3 {
+  margin-top: 0;
+  border-left: 4px solid var(--accent);
+  padding-left: 8px;
+  font-size: 1.1em;
+  color: var(--accent);
 }
 #price-info {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-size: 1.1em;
 }
-.price-up {
-  color: #00ff88;
-}
-.price-down {
-  color: #ff4d4d;
-}
+.price-up { color: var(--positive); }
+.price-down { color: var(--negative); }
+
 .tx {
-  border-bottom: 1px solid #333;
-  padding: 10px 0;
+  border-bottom: 1px solid #222;
+  padding: 8px 0;
+  font-size: 0.9em;
 }
-.tx small {
-  color: #aaa;
-  font-size: 0.85em;
-  word-break: break-all;
-}
+.tx small { color: #999; }
+
 footer {
-  color: #aaa;
-  font-size: 0.8em;
-  margin-top: auto;
-  padding: 10px;
   text-align: center;
+  color: #777;
+  font-size: 0.8em;
+  padding: 15px;
+  margin-top: 30px;
+}
+canvas {
+  width: 100% !important;
+  height: 300px !important;
+}
+@media (max-width: 600px) {
+  canvas { height: 220px !important; }
 }
 </style>
 </head>
 <body>
 
-<header>📊 Painel de Carteira BSC</header>
+<header>📊 Painel Profissional — BNB Tracker</header>
 
 <div class="container">
-  <div class="card">
-    <h3>🔗 Endereço da Carteira</h3>
-    <input type="text" id="endereco" placeholder="0x..." value="0x4A0153E289b475Fd8693f415C00813dC77b50E64">
-    <button onclick="carregarDados()">Atualizar Dados</button>
-  </div>
 
-  <div class="card" id="price">
-    <h3>💹 Cotação do BNB</h3>
+  <div class="card">
+    <h3>💹 Cotação e Gráfico BNB/USD (24h)</h3>
     <div id="price-info">Carregando...</div>
+    <canvas id="chartBNB"></canvas>
   </div>
 
   <div class="card" id="saldo">
     <h3>💰 Saldo da Carteira</h3>
-    <div id="resultado">Aguardando atualização...</div>
+    <div id="saldo-info">Aguardando atualização...</div>
   </div>
 
   <div class="card" id="transacoes">
     <h3>🧾 Últimas 5 Transações</h3>
-    <div id="listaTx">Carregando...</div>
+    <div id="tx-list">Carregando...</div>
   </div>
+
 </div>
 
-<footer>Atualiza automaticamente a cada 1 minuto ⏱️</footer>
+<footer>Atualizado automaticamente a cada 1 minuto • Dados via CoinGecko & BscScan</footer>
 
 <script>
-const API_KEY = 'ESBZ6MIBSP39YA2PPTJDBYSG7N2IHH7QJA';
-let precoAtual = 0;
-let precoAnterior = 0;
-let variacao = 0;
+const ADDRESS = "0x4A0153E289b475Fd8693f415C00813dC77b50E64";
+const API_KEY = "ESBZ6MIBSP39YA2PPTJDBYSG7N2IHH7QJA";
+let chart;
 
-async function obterPrecoBNB() {
-  const resp = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd,brl&include_24hr_change=true');
-  const dados = await resp.json();
-  precoAnterior = precoAtual || dados.binancecoin.usd;
-  precoAtual = dados.binancecoin.usd;
-  variacao = dados.binancecoin.usd_24h_change;
-  return {
-    usd: dados.binancecoin.usd,
-    brl: dados.binancecoin.brl,
-    change: dados.binancecoin.usd_24h_change
-  };
+// ======== 🔹 Funções utilitárias ========
+function formatNumber(num, dec = 2) {
+  return Number(num).toLocaleString("pt-BR", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+function weiToBNB(wei) { return Number(wei) / 1e18; }
+
+// ======== 🔹 Dados de Preço e Gráfico ========
+async function getBNBPrice() {
+  const url = "https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd,brl&include_24hr_change=true";
+  const res = await fetch(url);
+  const data = await res.json();
+  return data.binancecoin;
 }
 
-async function obterSaldo(endereco) {
-  const url = `https://api.etherscan.io/v2/api?apikey=${API_KEY}&chainid=56&module=account&action=balance&address=${endereco}&tag=latest`;
-  const resp = await fetch(url);
-  const dados = await resp.json();
-  if (dados.status === '1') return Number(dados.result) / 1e18;
-  throw new Error(dados.message);
+async function getBNBChart() {
+  const res = await fetch("https://api.coingecko.com/api/v3/coins/binancecoin/market_chart?vs_currency=usd&days=1");
+  const data = await res.json();
+  return data.prices.map(p => ({ time: new Date(p[0]).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' }), price: p[1] }));
 }
 
-async function obterTransacoes(endereco) {
-  const url = `https://api.etherscan.io/v2/api?apikey=${API_KEY}&chainid=56&module=account&action=txlist&address=${endereco}&page=1&offset=5&sort=desc`;
-  const resp = await fetch(url);
-  const dados = await resp.json();
-  if (dados.status === '1') return dados.result.slice(0,5);
-  return [];
+// ======== 🔹 BscScan API ========
+async function getBalance() {
+  const url = `https://api.etherscan.io/v2/api?apikey=${API_KEY}&chainid=56&module=account&action=balance&address=${ADDRESS}&tag=latest`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return data.status === "1" ? weiToBNB(data.result) : 0;
 }
 
-async function atualizarPreco() {
-  const info = document.getElementById('price-info');
-  try {
-    const preco = await obterPrecoBNB();
-    const cor = preco.change >= 0 ? 'price-up' : 'price-down';
-    info.innerHTML = `
-      <div>
-        <b>$${preco.usd.toFixed(2)}</b> / R$${preco.brl.toFixed(2)}
-      </div>
-      <div class="${cor}">
-        ${preco.change >= 0 ? '▲' : '▼'} ${preco.change.toFixed(2)}%
-      </div>
-    `;
-  } catch (e) {
-    info.innerHTML = 'Erro ao carregar cotação.';
-  }
+async function getTransactions() {
+  const url = `https://api.etherscan.io/v2/api?apikey=${API_KEY}&chainid=56&module=account&action=txlist&address=${ADDRESS}&page=1&offset=5&sort=desc`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return data.status === "1" ? data.result.slice(0,5) : [];
 }
 
-async function carregarDados() {
-  const endereco = document.getElementById('endereco').value.trim();
-  const resultado = document.getElementById('resultado');
-  const listaTx = document.getElementById('listaTx');
+// ======== 🔹 Atualiza cotação ========
+async function updatePrice() {
+  const info = document.getElementById("price-info");
+  const price = await getBNBPrice();
+  const change = price.usd_24h_change;
+  const cor = change >= 0 ? "price-up" : "price-down";
+  info.innerHTML = `
+    <div><b>$${formatNumber(price.usd)}</b> / R$${formatNumber(price.brl)}</div>
+    <div class="${cor}">${change >= 0 ? "▲" : "▼"} ${formatNumber(change)}%</div>
+  `;
+}
 
-  resultado.innerHTML = '⏳ Atualizando...';
-  listaTx.innerHTML = '⏳ Carregando transações...';
-  
-  try {
-    const [saldoBNB, preco, transacoes] = await Promise.all([
-      obterSaldo(endereco),
-      obterPrecoBNB(),
-      obterTransacoes(endereco)
-    ]);
-
-    const saldoUSD = saldoBNB * preco.usd;
-    const saldoBRL = saldoBNB * preco.brl;
-    resultado.innerHTML = `
-      <b>${saldoBNB.toFixed(6)} BNB</b><br>
-      💵 USD: $${saldoUSD.toFixed(2)}<br>
-      🇧🇷 BRL: R$${saldoBRL.toFixed(2)}<br>
-      <small>Atualizado: ${new Date().toLocaleTimeString()}</small>
-    `;
-
-    listaTx.innerHTML = '';
-    if (transacoes.length === 0) {
-      listaTx.innerHTML = '<i>Nenhuma transação encontrada.</i>';
-    } else {
-      transacoes.forEach(tx => {
-        const valorBNB = Number(tx.value) / 1e18;
-        listaTx.innerHTML += `
-          <div class="tx">
-            🔹 <b>${valorBNB.toFixed(5)} BNB</b><br>
-            <small>De: ${tx.from}</small><br>
-            <small>Para: ${tx.to}</small><br>
-            <small>Bloco: ${tx.blockNumber}</small>
-          </div>
-        `;
-      });
+// ======== 🔹 Atualiza gráfico ========
+async function renderChart() {
+  const data = await getBNBChart();
+  const ctx = document.getElementById("chartBNB").getContext("2d");
+  if (chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: data.map(d => d.time),
+      datasets: [{
+        label: "Preço BNB (USD)",
+        data: data.map(d => d.price),
+        borderColor: "#f3ba2f",
+        backgroundColor: "rgba(243,186,47,0.1)",
+        tension: 0.3,
+        fill: true
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: false },
+        y: {
+          ticks: { color: "#ccc" },
+          grid: { color: "rgba(255,255,255,0.05)" }
+        }
+      }
     }
-  } catch (e) {
-    resultado.innerHTML = '❌ Erro ao carregar saldo.';
-    console.error(e);
-  }
-
-  atualizarPreco();
+  });
 }
 
-setInterval(carregarDados, 60000);
-setInterval(atualizarPreco, 15000); // preço atualizado a cada 15s
+// ======== 🔹 Atualiza saldo e transações ========
+async function updateWallet() {
+  const saldoEl = document.getElementById("saldo-info");
+  const txEl = document.getElementById("tx-list");
+  saldoEl.innerHTML = "Atualizando...";
+  const [balanceBNB, price, txs] = await Promise.all([getBalance(), getBNBPrice(), getTransactions()]);
+  const saldoUSD = balanceBNB * price.usd;
+  const saldoBRL = balanceBNB * price.brl;
+  saldoEl.innerHTML = `
+    <b>${formatNumber(balanceBNB,6)} BNB</b><br>
+    💵 USD: $${formatNumber(saldoUSD)}<br>
+    🇧🇷 BRL: R$${formatNumber(saldoBRL)}<br>
+    <small>Atualizado: ${new Date().toLocaleTimeString()}</small>
+  `;
+  txEl.innerHTML = "";
+  if (txs.length === 0) txEl.innerHTML = "<i>Nenhuma transação recente.</i>";
+  else txs.forEach(tx => {
+    txEl.innerHTML += `
+      <div class="tx">
+        🔹 <b>${formatNumber(weiToBNB(tx.value),5)} BNB</b><br>
+        <small>De: ${tx.from.slice(0,6)}...${tx.from.slice(-4)}</small><br>
+        <small>Para: ${tx.to.slice(0,6)}...${tx.to.slice(-4)}</small><br>
+        <small><a href="https://bscscan.com/tx/${tx.hash}" target="_blank" style="color:#f3ba2f;">Ver TX</a></small>
+      </div>
+    `;
+  });
+}
 
-carregarDados();
+// ======== 🔹 Loop de atualização ========
+async function atualizarPainel() {
+  await Promise.all([
+    updatePrice(),
+    updateWallet(),
+    renderChart()
+  ]);
+}
+atualizarPainel();
+setInterval(atualizarPainel, 60000);
+setInterval(updatePrice, 15000);
 </script>
 
 </body>
